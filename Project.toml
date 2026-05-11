@@ -1,17 +1,24 @@
 name = "RemoteFHE"
-uuid = "8a0d5511-0f02-4f8e-bb88-b13043c94a6f"
+uuid = "7ced0bc9-ea85-4027-9395-c09b65f132ff"
 version = "0.1.0"
 authors = ["Tom Finke <tom.finke@uni-a.de>"]
 
 [deps]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+CxxWrap = "1f15a43c-97ca-5a2a-ae31-89f07a497df4"
 OpenFHE = "77ce9b8e-ecf5-45d1-bd8a-d31f384f2f95"
+OpenFHE_jll = "a2687184-f17b-54bc-b2bb-b849352af807"
 SecureArithmetic = "38cee09b-6d7e-4d21-866e-807a7f642fe9"
 Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
+openfhe_julia_jll = "e5e97983-1b8c-50fe-92b7-0e05c8c202e2"
 
 [compat]
+CxxWrap = "0.17.5"
 OpenFHE = "0.2"
+OpenFHE_jll = "1.5.1"
 SecureArithmetic = "0.2"
 Serialization = "1.11.0"
 Sockets = "1.11.0"
 julia = "1.10"
+openfhe_julia_jll = "0.6.0"
