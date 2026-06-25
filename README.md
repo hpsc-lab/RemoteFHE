@@ -1,8 +1,14 @@
+> [!WARNING]
+> This project is in an early alpha state. It is not recommended to use this package in its current state.
+
 # RemoteFHE
 
 A minimal Julia project demonstrating a simple OpenFHE client/server flow.
 
 ## Overview
+
+This project uses Julia's `Serialization` librariy to pass data SecureArithmetic objects between client and server.
+The server does not decrypt client data; it operates on encrypted ciphertext and returns an encrypted result.
 
 - `RemoteFHE` creates an OpenFHE-backed `SecureContext`.
 - The client encrypts a vector with a public key and sends the ciphertext to the server.
@@ -25,25 +31,13 @@ julia --project=RemoteFHE examples/client.jl
 
 ## Notes
 
-This project uses Julia's `Sockets` and `Serialization` libraries for transport.
-The server does not decrypt client data; it operates on encrypted ciphertext and returns an encrypted result.
 
-# Ideas for the Future
-
-## gRPC
-
-For a standardized and established way of managing Remote Procedure calls, we could use gRPC. There currently is no official implementation for julia, see the [gRPC repository list](https://github.com/orgs/grpc/repositories).
-
-There are
-- [gRPCClient.jl](https://github.com/JuliaIO/gRPCClient.jl), since 2021, 65 GitHub stars
-- [gRPCServer.jl](https://github.com/s-celles/gRPCServer.jl), since 2026, 5 GitHub stars
+## Authors
+RemoteFHE.jl was initiated by [Tom Finke](https://github.com/Tom-Finke/) while working for Michael Schlottke-Lakemper at the HPSC Lab of the University of Augsburg, Germany (https://hpsc.math.uni-augsburg.de).
 
 
-The client side is much more mature thatn the server. Implement the server in C++ and the client in julia?
+## License and contributing
+RemoteFHE.jl is available under the MIT license (see [LICENSE.md](LICENSE.md)).
+Contributions by the community are very welcome! For larger proposed changes, feel free
+to reach out via an issue first.
 
-## Distributed.jl
-
-NOTE: This idea if off the table since the nodes dont necessarily trust the clients to execute arbitrary code.
-
-With the current approach, the algorithms that the server can run must be predefined. We could use [Distributed.jl](https://github.com/JuliaLang/Distributed.jl) to execute arbitrary code on the remote server.
-This would give us
