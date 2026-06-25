@@ -2,6 +2,7 @@ module RemoteFHE
 
 using Serialization
 using HTTP
+using Base64
 using OpenFHE
 using SecureArithmetic
 
@@ -66,7 +67,21 @@ function parse_parts(parts::Vector{HTTP.Multipart})
 end
 
 
+function basic_auth_middleware(handler, username::AbstractString, password::AbstractString)
+    expected = base64encode("$username:$password")
+    return function(req)
+        auth = HTTP.header(req, "Authorization", "")
+        if startswith(auth, "Basic ") && SubString(auth, 7) == expected
+            return handler(req)
+        end
+        HTTP.Response(401, ["WWW-Authenticate" => "Basic realm=\"RemoteFHE\""], "Unauthorized")
+    end
+end
+
 function run_server(port::Integer = 8080)
+    username = ENV["REMOTEFHE_USERNAME"]
+    password = ENV["REMOTEFHE_PASSWORD"]
+
     router = HTTP.Router()
 
     HTTP.register!(router, "POST", "/compute") do req
@@ -93,12 +108,15 @@ function run_server(port::Integer = 8080)
         end
     end
 
-    server = HTTP.serve!(router, "0.0.0.0", port)
+    server = HTTP.serve!(basic_auth_middleware(router, username, password), "0.0.0.0", port)
     @info "RemoteFHE server listening on port $port"
     wait(server)
 end
 
 function run_client(values::AbstractVector{<:Real}, host::AbstractString = "http://127.0.0.1:8080")
+    username = ENV["REMOTEFHE_USERNAME"]
+    password = ENV["REMOTEFHE_PASSWORD"]
+
     (; context, public_key, private_key) = setup_context()
     ciphertext = encrypt_vector(values, public_key, context)
     println("Encrypted values: ", values)
@@ -108,7 +126,8 @@ function run_client(values::AbstractVector{<:Real}, host::AbstractString = "http
         "public_key" => make_part(public_key),
         "ciphertext" => make_part(ciphertext),
     ])
-    response = HTTP.post("$host/compute", ["Content-Type" => HTTP.content_type(form)], form)
+    response = HTTP.post("$host/compute", ["Content-Type" => HTTP.content_type(form)], form;
+                         basicauth = (username, password))
 
     ct = HTTP.header(response, "Content-Type")
     resp_parts = HTTP.parse_multipart_form(ct, response.body)
