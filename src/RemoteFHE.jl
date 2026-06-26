@@ -2,6 +2,7 @@ module RemoteFHE
 
 using Serialization
 using HTTP
+using Reseau.TLS
 using Base64
 using OpenFHE
 using SecureArithmetic
@@ -78,10 +79,9 @@ function basic_auth_middleware(handler, username::AbstractString, password::Abst
     end
 end
 
-function run_server(port::Integer = 8080)
-    username = ENV["REMOTEFHE_USERNAME"]
-    password = ENV["REMOTEFHE_PASSWORD"]
-
+function run_server(host::AbstractString = "0.0.0.0", port::Integer = 8080; 
+                    username::Union{AbstractString,Nothing} = nothing, password::Union{AbstractString,Nothing} = nothing,
+                    cert_file::Union{AbstractString,Nothing} = nothing, key_file::Union{AbstractString,Nothing} = nothing)
     router = HTTP.Router()
 
     HTTP.register!(router, "POST", "/compute") do req
@@ -108,14 +108,35 @@ function run_server(port::Integer = 8080)
         end
     end
 
-    server = HTTP.serve!(basic_auth_middleware(router, username, password), "0.0.0.0", port)
-    @info "RemoteFHE server listening on port $port"
+    handler = if username !== nothing && password !== nothing
+        basic_auth_middleware(router, username, password)
+    else
+        router
+    end
+
+    use_tls = cert_file !== nothing && key_file !== nothing
+    server = if use_tls
+        tls_config = TLS.Config(; cert_file, key_file)
+        listener = TLS.listen("tcp", "$host:$port", tls_config)
+        @info "RemoteFHE server listening on $host:$port (TLS)"
+        HTTP.serve!(handler, listener)
+    else
+        @info "RemoteFHE server listening on $host:$port"
+        HTTP.serve!(handler, host, port)
+    end
     wait(server)
 end
 
-function run_client(values::AbstractVector{<:Real}, host::AbstractString = "http://127.0.0.1:8080")
-    username = ENV["REMOTEFHE_USERNAME"]
-    password = ENV["REMOTEFHE_PASSWORD"]
+function run_client(values::AbstractVector{<:Real}, host::AbstractString = "http://127.0.0.1:8080";
+                    username::Union{AbstractString,Nothing} = nothing, password::Union{AbstractString,Nothing} = nothing,
+                    ca_file::Union{AbstractString,Nothing} = nothing)
+    client = if ca_file !== nothing
+        tls_config = TLS.Config(; ca_file)
+        transport = HTTP.Transport(; tls_config)
+        HTTP.Client(; transport)
+    else
+        nothing
+    end
 
     (; context, public_key, private_key) = setup_context()
     ciphertext = encrypt_vector(values, public_key, context)
@@ -126,8 +147,13 @@ function run_client(values::AbstractVector{<:Real}, host::AbstractString = "http
         "public_key" => make_part(public_key),
         "ciphertext" => make_part(ciphertext),
     ])
+    basicauth = if username !== nothing && password !== nothing
+        (username, password)
+    else
+        nothing
+    end
     response = HTTP.post("$host/compute", ["Content-Type" => HTTP.content_type(form)], form;
-                         basicauth = (username, password))
+                         basicauth, client)
 
     ct = HTTP.header(response, "Content-Type")
     resp_parts = HTTP.parse_multipart_form(ct, response.body)

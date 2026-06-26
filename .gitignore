@@ -1,2 +1,4 @@
 Manifest.toml
 *.log
+*.pem
+*.csr
